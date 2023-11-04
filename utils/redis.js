@@ -13,19 +13,42 @@ class RedisClient {
   }
 
   async get(key) {
-    const value = await this.client.get(key);
-    return value;
+    return new Promise((resolve, reject) => {
+      this.client.get(key, (error, value) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(value);
+        }
+      });
+    });
   }
 
   async set(key, value, duration) {
-    await this.client.set(key, value);
-    await this.client.expire(key, duration);
+    return new Promise((resolve, reject) => {
+      this.client.setex(key, duration, value, (error, result) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(result);
+        }
+      });
+    });
   }
 
   async del(key) {
-    await this.client.del(key);
+    return new Promise((resolve, reject) => {
+      this.client.del(key, (error, result) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(result);
+        }
+      });
+    });
   }
 }
+
 
 const redisClient = new RedisClient();
 export default redisClient;
