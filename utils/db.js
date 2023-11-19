@@ -5,28 +5,28 @@ const { MongoClient } = require('mongodb');
 class DBClient {
   constructor() {
     let host = 'localhost';
-    if (!!process.env.DB_HOST) {
+    if (process.env.DB_HOST) {
       host = process.env.DB_HOST;
     }
     let port = 27017;
-    if (!!process.env.DB_PORT) {
+    if (process.env.DB_PORT) {
       port = process.env.DB_PORT;
     }
     let database = 'files_manager';
-    if (!!process.env.DB_DATABASE) {
+    if (process.env.DB_DATABASE) {
       database = process.env.DB_DATABASE;
     }
-    const connection_string = `mongodb://${host}:${port}/${database}`
-    this.client = new MongoClient(connection_string);
+    const url = `mongodb://${host}:${port}/${database}`;
+    this.client = new MongoClient(url);
     this.client.connect().then(
       () => {
         this.db = this.client.db(database);
-      }
+      },
     ).catch((err) => console.error('Mongo DB connection failed:', err));
   }
 
   isAlive() {
-    let aliveness = !!this.client && !!this.db;
+    const aliveness = !!this.client && !!this.db;
     return aliveness;
   }
 
