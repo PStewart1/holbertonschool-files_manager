@@ -1,31 +1,30 @@
-import redis from 'redis';
-import chai from 'chai';
-import { promisify } from 'util';
-import redisClient from './utils/redis.js';
+import dbClient from './utils/db';
 
+const waitConnection = () => {
+    return new Promise((resolve, reject) => {
+        let i = 0;
+        const repeatFct = async () => {
+            await setTimeout(() => {
+                i += 1;
+                if (i >= 10) {
+                    reject()
+                }
+                else if(!dbClient.isAlive()) {
+                    repeatFct()
+                }
+                else {
+                    resolve()
+                }
+            }, 1000);
+        };
+        repeatFct();
+    })
+};
 
-describe('redisClient test', () => {
-    let testRedisClient;
-    let redisDelAsync;
-    let redisSetAsync;
-
-    beforeEach((done) => {
-        testRedisClient = redis.createClient();
-        redisDelAsync = promisify(testRedisClient.del).bind(testRedisClient);
-        redisSetAsync = promisify(testRedisClient.set).bind(testRedisClient);
-        testRedisClient.on('connect', async () => {
-            await redisSetAsync('myCheckerKey', 89);
-            done()
-        });
-    });
-    
-    afterEach(async () => {
-        await redisDelAsync('myCheckerKey');
-    });
-
-    it('get of existing key', async () => {
-        const kv = await redisClient.get('myCheckerKey');
-        chai.assert.exists(kv);
-        chai.assert.equal(kv, 89)
-    });
-});
+(async () => {
+    console.log(dbClient.isAlive());
+    await waitConnection();
+    console.log(dbClient.isAlive());
+    console.log(await dbClient.nbUsers());
+    console.log(await dbClient.nbFiles());
+})();
