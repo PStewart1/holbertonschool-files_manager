@@ -7,6 +7,7 @@ if (process.env.PORT) {
   port = process.env.PORT;
 }
 
+app.use(express.json());
 app.use('/', routes);
 
 app.listen(port, () => {
