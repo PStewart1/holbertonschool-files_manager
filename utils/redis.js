@@ -1,3 +1,5 @@
+// creating a redis client to handle storing temporary data
+
 import * as redis from 'redis';
 
 class RedisClient {
