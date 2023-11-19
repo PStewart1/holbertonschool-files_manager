@@ -1,32 +1,41 @@
+// here we make our connection to Mongo
+
 const { MongoClient } = require('mongodb');
 
-const host = process.env.DB_HOST;
-const port = process.env.DB_PORT;
-const database = process.env.DB_DATABASE;
-
 class DBClient {
-  constructor(host = 'localhost', port = 27017, database = 'files_manager') {
+  constructor() {
+    let host = 'localhost';
+    if (process.env.DB_HOST) {
+      host = process.env.DB_HOST;
+    }
+    let port = 27017;
+    if (process.env.DB_PORT) {
+      port = process.env.DB_PORT;
+    }
+    let database = 'files_manager';
+    if (process.env.DB_DATABASE) {
+      database = process.env.DB_DATABASE;
+    }
     const url = `mongodb://${host}:${port}/${database}`;
     this.client = new MongoClient(url);
-    this.client.connect();
+    this.client.connect().then(
+      () => {
+        this.db = this.client.db(database);
+      },
+    ).catch((err) => console.error('Mongo DB connection failed:', err));
   }
 
   isAlive() {
-    return this.client.isConnected();
+    const aliveness = !!this.client && !!this.db;
+    return aliveness;
   }
 
   async nbUsers() {
-    const db = this.client.db();
-    const users = db.collection('users');
-    const numUsers = await users.countDocuments();
-    return numUsers;
+    return this.db.collection('users').countDocuments();
   }
 
   async nbFiles() {
-    const db = this.client.db();
-    const files = db.collection('files');
-    const numFiles = await files.countDocuments();
-    return numFiles;
+    return this.db.collection('files').countDocuments();
   }
 }
 
