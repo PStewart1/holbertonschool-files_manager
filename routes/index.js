@@ -1,6 +1,7 @@
 // contains all the endpoints of our API
 
-import AppController from '../controllers/AppController'
+import AppController from '../controllers/AppController';
+
 const express = require('express');
 
 const routesToUse = express.Router();
