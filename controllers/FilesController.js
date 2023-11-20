@@ -85,7 +85,7 @@ class FilesController {
     newFile.localPath = filePath;
     // write the file locally and insert into db, then return details
     try {
-      await prom.writeFile(filePath, data, {encoding: 'base64'});
+      await prom.writeFile(filePath, data, { encoding: 'base64' });
     } catch (err) {
       console.log(err);
     }
