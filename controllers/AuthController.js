@@ -24,13 +24,13 @@ class AuthController {
     // binary data, and decode that into a string and split it to get the email
     // and the password separately
     try {
-        [email, password] = Buffer.from(encodedAuth, 'base64').toString().split(':');
-        if (!email || !password) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
-        } catch (error) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
+      [email, password] = Buffer.from(encodedAuth, 'base64').toString().split(':');
+      if (!email || !password) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+    } catch (error) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
     // then we'll encode it again (because we are incorrigible) because our db stores passwords
     // with an sha1-encoded hash.
     const youSha11NotPass = sha1(password);
