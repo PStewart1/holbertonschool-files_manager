@@ -13,5 +13,6 @@ routesToUse.get('/stats', AppController.getStats);
 routesToUse.post('/users', UsersController.postNew);
 routesToUse.get('/connect', AuthController.getConnect);
 routesToUse.get('/disconnect', AuthController.getDisconnect);
+routesToUse.get('/users/me', UsersController.getMe);
 
 module.exports = routesToUse;
