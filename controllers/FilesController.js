@@ -4,6 +4,7 @@ import authenticate from '../utils/auth';
 const { v4: uuidv4 } = require('uuid');
 const { ObjectId } = require('mongodb');
 const fs = require('fs');
+const prom = require('fs').promises;
 
 class FilesController {
   static async postUpload(req, res) {
@@ -83,9 +84,16 @@ class FilesController {
     // add file path to file properties
     newFile.localPath = filePath;
     // write the file locally and insert into db, then return details
-    await fs.writeFile(filePath, data, { encoding: 'base64' }, (err) => {
-      if (err) console.log(err);
-    });
+    try {
+      await prom.writeFile(filePath, data, {encoding: 'base64'});
+    } catch (err) {
+      console.log(err);
+    }
+    // COMMENTED-OUT CODE BELOW REDONE AS TRY-CATCH BLOCK ABOVE,
+    // USING PROMISE-BASED (AWAITABLE) FILE WRITE FUNCTION
+    // await fs.writeFile(filePath, data, { encoding: 'base64' }, (err) => {
+    //   if (err) console.log(err);
+    // });
     const result = await files.insertOne(newFile);
 
     return res.status(201).json({
