@@ -1,5 +1,5 @@
 // adds a user to the db
-import ObjectId from 'mongodb';
+const { ObjectId } = require('mongodb');
 import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
 
