@@ -1,12 +1,18 @@
-import UsersController from './UsersController';
 import dbClient from '../utils/db';
+import authenticate from '../utils/auth';
 
 const { v4: uuidv4 } = require('uuid');
+const { ObjectId } = require('mongodb');
 const fs = require('fs');
 
 class FilesController {
   static async postUpload(req, res) {
-    const user = await UsersController.authenticate(req, res);
+    let user;
+    try {
+      user = await authenticate(req);
+    } catch (error) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
 
     if (!req.body.name) {
       return res.status(400).json({ error: 'Missing name' });
@@ -23,7 +29,8 @@ class FilesController {
     let parentId = 0;
     const files = dbClient.db.collection('files');
     if (req.body.parentId) {
-      const fileExists = await files.findOne({ parentId: req.body.parentId });
+      const currentUserObjectId = new ObjectId(req.body.parentId);
+      const fileExists = await files.findOne({ _id: currentUserObjectId });
       if (!fileExists) {
         return res.status(400).json({ error: 'Parent not found' });
       }
@@ -63,13 +70,16 @@ class FilesController {
     if (process.env.FOLDER_PATH) {
       folderPath = process.env.FOLDER_PATH;
     }
+    if (!fs.existsSync(folderPath)) {
+      fs.mkdirSync(folderPath);
+    }
     const filePath = `${folderPath}/${fileName}`;
     newFile.localPath = filePath;
     await fs.writeFile(filePath, data, { encoding: 'base64' }, (err) => {
       if (err) console.log(err);
     });
     const result = await files.insertOne(newFile);
-    console.log(user);
+
     return res.status(201).json({
       id: result.insertedId,
       userId: newFile.userId,
