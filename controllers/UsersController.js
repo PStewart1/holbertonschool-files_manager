@@ -1,8 +1,8 @@
 // adds a user to the db
-const { ObjectId } = require('mongodb');
 import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
 
+const { ObjectId } = require('mongodb');
 const sha1 = require('sha1');
 
 class UsersController {
@@ -33,7 +33,7 @@ class UsersController {
     return res.status(201).json({ id: result.insertedId, email: newUser.email });
   }
 
-  static async getMe(req, res) {
+  static async authenticate(req, res) {
     // we look for the token in the header X-Token, where each authenticated API endpoint of ours
     // looks for the authorization token
     const tokenFromX = req.headers['x-token'];
@@ -55,9 +55,16 @@ class UsersController {
       if (!userFound) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
-      return res.status(200).json({ email: userFound.email, id: userFound._id });
+      return userFound;
     } catch (error) {
       return res.status(401).json({ error: 'Unauthorized' });
+    }
+  }
+
+  static async getMe(req, res) {
+    const userFound = await UsersController.authenticate(req, res);
+    if (userFound) {
+      return res.status(200).json({ email: userFound.email, id: userFound._id });
     }
   }
 }

@@ -9,16 +9,28 @@ const { v4: uuidv4 } = require('uuid');
 class AuthController {
   static async getConnect(req, res) {
     const authorizationHeader = req.headers.authorization;
-    if (!authorizationHeader) {
-      // c'mon, you gotta be authorized
+    if (!authorizationHeader || !authorizationHeader.startsWith('Basic ')) {
+      // c'mon, you gotta be authorized, basically
       return res.status(401).json({ error: 'Unauthorized' });
     }
     // first we parse the header, b/c the string looks like "Basic [credentials]" where
     // [credentials] is encoded in Base64 in the format email:pass
     const encodedAuth = authorizationHeader.split(' ')[1];
-    // next we'll decode it into a buffer, which is a class node provides for binary data,
-    // and decode that into a string and split it to get the email and the password separately
-    const [email, password] = Buffer.from(encodedAuth, 'base64').toString().split(':');
+    // let's declare a couple variables to try to redefine in a try/catch block
+    // this way we can catch when they fail to decode (i.e., invalid base64 encoding)
+    let email;
+    let password;
+    // next we'll try to decode encodedAuth into a buffer, which is a class node provides for
+    // binary data, and decode that into a string and split it to get the email
+    // and the password separately
+    try {
+      [email, password] = Buffer.from(encodedAuth, 'base64').toString().split(':');
+      if (!email || !password) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+    } catch (error) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
     // then we'll encode it again (because we are incorrigible) because our db stores passwords
     // with an sha1-encoded hash.
     const youSha11NotPass = sha1(password);
