@@ -1,8 +1,8 @@
 // adds a user to the db
-const { ObjectId } = require('mongodb');
 import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
 
+const { ObjectId } = require('mongodb');
 const sha1 = require('sha1');
 
 class UsersController {
