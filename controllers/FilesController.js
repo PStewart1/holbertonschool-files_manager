@@ -5,6 +5,7 @@ const { v4: uuidv4 } = require('uuid');
 const { ObjectId } = require('mongodb');
 const fs = require('fs');
 const prom = require('fs').promises;
+const { mime } = require('mime-types');
 
 class FilesController {
   static async postUpload(req, res) {
@@ -262,6 +263,49 @@ class FilesController {
       { _id: fileRequestedObjectId },
     );
     return res.status(200).json(fileThatWasJustUnpublished);
+  }
+
+  static async getFile(req, res) {
+    // let's grab the file id from the URL parameter
+    const fileRequestedId = req.params.id;
+    // and try to convert it to a mongodb ObjectId type
+    let fileRequestedObjectId;
+    try {
+      fileRequestedObjectId = new ObjectId(fileRequestedId);
+    } catch (error) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+    // we'll make a reference to the files collection accessible via our mongo client
+    const filesCollectionToQuery = dbClient.db.collection('files');
+    // and try to retrive the file
+    const fileRequested = await filesCollectionToQuery.findOne({ _id: fileRequestedObjectId });
+    if (!fileRequested) {
+      // not there? oh well!
+      return res.status(404).json({ error: 'Not found' });
+    }
+    // if it's not public and the requesting user isn't authenticated or the owner? error.
+    if (fileRequested.isPulbic === false) {
+      const fileOwner = fileRequested.userId.toString();
+      if (fileOwner !== req.userId) {
+        return res.status(404).json({ error: 'Not found' });
+      }
+    }
+    // make sure they're not requesting a folder, which would be silly
+    if (fileRequested.type === 'folder') {
+      return res.status(400).json({ error: "A folder doesn't have content" });
+    }
+    // throw an error if the file isn't locally present
+    if (!fs.existsSync(fileRequested.localPath)) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+    // with all those painful error checks behind us, it is now time to check the type
+    const fileRequestedMimeType = mime.lookup(fileRequested.name);
+    // set the header
+    res.setHeader('Content-Type', fileRequestedMimeType);
+    // grab the content of the actual file
+    const fileRequestedInnards = fs.readFileSync(fileRequested.localPath, 'utf8');
+    // give it graciously to the user
+    return res.status(200).send(fileRequestedInnards);
   }
 }
 
