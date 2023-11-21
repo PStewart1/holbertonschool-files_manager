@@ -136,7 +136,7 @@ class FilesController {
       return res.status(404).json({ error: 'Not found' });
     }
     // if successful, we will return the file document (note: not the file itself!)
-    return res.status(200).json({ fileToReturn });
+    return res.status(200).json(fileToReturn);
   }
 
   static async getIndex(req, res) {
