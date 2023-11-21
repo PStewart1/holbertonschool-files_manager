@@ -20,5 +20,6 @@ routesToUse.get('/files/:id', FilesController.getShow);
 routesToUse.get('/files', FilesController.getIndex);
 routesToUse.put('/files/:id/publish', FilesController.putPublish);
 routesToUse.put('/files/:id/unpublish', FilesController.putUnpublish);
+routesToUse.get('/files/:id/data', FilesController.getFile);
 
 module.exports = routesToUse;
