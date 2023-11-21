@@ -156,7 +156,7 @@ class FilesController {
     let parentIdToSearch;
     // and if they have provided one, we will use that instead
     if (req.query.parentId) {
-      parentIdToSearch = req.query.parentId;
+      parentIdToSearch = new ObjectId(req.query.parentId);
     } else {
       parentIdToSearch = 0;
     }
