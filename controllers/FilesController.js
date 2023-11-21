@@ -151,14 +151,16 @@ class FilesController {
     // we'll make a reference to the files collection accessible via our mongo client
     const filesCollectionToQuery = dbClient.db.collection('files');
     // now let's get the query parameters from the query, if they are provided.
-    // first, the parentId, which will default to 0 (root)
-    let parentId = 0;
+
+    // first, the parentId, which will default to 0 (root) but we'll declare it and check first
+    let parentIdToSearch;
     // and if they have provided one, we will use that instead
     if (req.query.parentId) {
-      parentId = req.query.parentId;
+      parentIdToSearch = req.query.parentId;
+    } else {
+      parentIdToSearch = 0;
     }
-    // and turn it into the mongo type of ObjectId
-    const parentIdToSearch = new ObjectId(parentId);
+
     // secondly, we will get the page of results they want (if they provide it).
     // we set the default value to be 0
     let page = 0;
