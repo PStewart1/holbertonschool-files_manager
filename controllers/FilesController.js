@@ -158,7 +158,7 @@ class FilesController {
     if (req.query.parentId) {
       parentIdToSearch = new ObjectId(req.query.parentId);
     } else {
-      parentIdToSearch = 0;
+      parentIdToSearch = new ObjectId(0);
     }
 
     // secondly, we will get the page of results they want (if they provide it).
