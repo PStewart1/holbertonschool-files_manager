@@ -303,7 +303,7 @@ class FilesController {
     // set the header
     res.setHeader('Content-Type', fileRequestedMimeType);
     // grab the content of the actual file
-    const fileRequestedInnards = fs.readFileSync(fileRequested.localPath, 'utf8');
+    const fileRequestedInnards = fs.readFileSync(fileRequested.localPath);
     // give it graciously to the user
     return res.status(200).send(fileRequestedInnards);
   }
