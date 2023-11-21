@@ -148,40 +148,38 @@ class FilesController {
     } catch (error) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
+    // get the parentId and page (if it's there, otherwise 0) from the request
+    const { parentId, page = 0 } = req.query;
+    // and turn page into a skip parameter by multiplying it by the max # records per page
+    const skipParameter = parseInt(page, 10) * 20;
     // we'll make a reference to the files collection accessible via our mongo client
     const filesCollectionToQuery = dbClient.db.collection('files');
-    // now let's get the query parameters from the query, if they are provided.
-    // first, the parentId, which will default to 0 (root) but we'll declare it and check first
-    let parentIdToSearch;
-    // and if they have provided one, we will use that instead
-    if (req.query.parentId && ObjectId.isValid(req.query.parentId)) {
-      parentIdToSearch = new ObjectId(req.query.parentId);
-    } else {
-      parentIdToSearch = '0';
+    // Prepare match condition for MongoDB aggregation, starting with default (no parentId)
+    let matchCondition = { userId: userRequesting._id };
+    // if there is a valid parentId (folder), we'll add that
+    if (parentId && ObjectId.isValid(parentId)) {
+      matchCondition = { ...matchCondition, parentId: new ObjectId(parentId) };
     }
-
-    // secondly, we will get the page of results they want (if they provide it).
-    // we set the default value to be 0
-    let page = 0;
-    // Then we'll check to see if it's included in the query.
-    // if it's not an integer, parseInt will return NaN which == false
-    if (parseInt(req.query.page, 10)) {
-      // set page if they've given us a valid one
-      page = parseInt(req.query.page, 10);
-    }
-    // and turn page into a skip parameter by multiplying it by the max # records per page
-    const skipParameter = page * 20;
     // we'll put these all together into an aggregate command to make use of mongo's pipeline
     const mongoAggregateCommand = [
-      { $match: { userId: userRequesting._id, parentId: parentIdToSearch } },
+      { $match: matchCondition },
       { $skip: skipParameter },
       { $limit: 20 },
     ];
     // and execute the command on the collection we made accessible earlier, putting results in an
     // array which we will then be able to return as a list of files to the user
     const filesToReturn = await filesCollectionToQuery.aggregate(mongoAggregateCommand).toArray();
-    // and return it
-    return res.status(200).json(filesToReturn);
+    // and format it
+    const formattedFiles = filesToReturn.map((file) => ({
+      id: file._id,
+      userId: file.userId,
+      name: file.name,
+      type: file.type,
+      isPublic: file.isPublic,
+      parentId: file.parentId,
+    }));
+    // and finally return it
+    return res.status(200).json(formattedFiles);
   }
 }
 
