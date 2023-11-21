@@ -6,6 +6,7 @@ const { ObjectId } = require('mongodb');
 const fs = require('fs');
 const prom = require('fs').promises;
 const mime = require('mime-types');
+const Queue = require('bull');
 
 class FilesController {
   static async postUpload(req, res) {
@@ -85,17 +86,21 @@ class FilesController {
     // add file path to file properties
     newFile.localPath = filePath;
     // write the file locally and insert into db, then return details
+    // USING PROMISE-BASED (AWAITABLE) FILE WRITE FUNCTION
     try {
       await prom.writeFile(filePath, data, { encoding: 'base64' });
     } catch (err) {
       console.log(err);
     }
-    // COMMENTED-OUT CODE BELOW REDONE AS TRY-CATCH BLOCK ABOVE,
-    // USING PROMISE-BASED (AWAITABLE) FILE WRITE FUNCTION
-    // await fs.writeFile(filePath, data, { encoding: 'base64' }, (err) => {
-    //   if (err) console.log(err);
-    // });
     const result = await files.insertOne(newFile);
+    // add new job into queue for generating thumbnails for image
+    if (newFile.type === 'image') {
+      const fileQueue = new Queue('fileQueue');
+      await fileQueue.add({
+        userId: newFile.userId,
+        fileId: result.insertedId,
+      });
+    }
 
     return res.status(201).json({
       id: result.insertedId,
@@ -301,8 +306,13 @@ class FilesController {
     if (fileRequested.type === 'folder') {
       return res.status(400).json({ error: "A folder doesn't have content" });
     }
+    // add support for returning thumbnail, if 'size' query is present
+    let { localPath } = fileRequested;
+    if (fileRequested.type === 'image' && req.query.size) {
+      localPath += `_${req.query.size}`;
+    }
     // throw an error if the file isn't locally present
-    if (!fs.existsSync(fileRequested.localPath)) {
+    if (!fs.existsSync(localPath)) {
       return res.status(404).json({ error: 'Not found' });
     }
     // with all those painful error checks behind us, it is now time to check the type
@@ -310,7 +320,7 @@ class FilesController {
     // set the header
     res.setHeader('Content-Type', fileRequestedMimeType);
     // grab the content of the actual file
-    const fileRequestedInnards = fs.readFileSync(fileRequested.localPath);
+    const fileRequestedInnards = fs.readFileSync(localPath);
     // give it graciously to the user
     return res.status(200).send(fileRequestedInnards);
   }
