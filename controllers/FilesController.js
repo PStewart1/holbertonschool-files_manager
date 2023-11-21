@@ -106,6 +106,47 @@ class FilesController {
       localPath: newFile.localPath,
     });
   }
+
+  static async getShow(req, res) {
+    // let's declare a variable to hold the user object located based on the request
+    let userRequesting;
+    // pass it to our good friend authenticate to return the user object
+    try {
+      userRequesting = await authenticate(req);
+    } catch (error) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    // now let's grab the file identifier from the url parameter
+    const fileIdentifier = req.params.id;
+    // and convert it into a ObjectId, which is how MongoDB stores unique doc identifiers
+    let fileObjectId;
+    try {
+      fileObjectId = new ObjectId(fileIdentifier);
+    } catch (error) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+    // we'll make a reference to the files collection accessible via our mongo client
+    const filesCollectionToQuery = dbClient.db.collection('files');
+    // and then try to get the file document from the databaseby matching both the
+    // file id and the user's id (so we know they have permission)
+    const fileToReturn = await filesCollectionToQuery.findOne({ _id: fileObjectId, userId: userRequesting._id });
+    if (!fileToReturn) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+    // if successful, we will return the file document (note: not the file itself!)
+    return res.status(200).json({ fileToReturn });
+  }
+
+  static async getIndex(req, res) {
+    // let's declare a variable to hold the user object located based on the request
+    let userRequesting;
+    // pass it to our good friend authenticate to return the user object
+    try {
+      userRequesting = await authenticate(req);
+    } catch (error) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+  }
 }
 
 export default FilesController;
