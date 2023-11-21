@@ -129,7 +129,9 @@ class FilesController {
     const filesCollectionToQuery = dbClient.db.collection('files');
     // and then try to get the file document from the databaseby matching both the
     // file id and the user's id (so we know they have permission)
-    const fileToReturn = await filesCollectionToQuery.findOne({ _id: fileObjectId, userId: userRequesting._id });
+    const fileToReturn = await filesCollectionToQuery.findOne(
+      { _id: fileObjectId, userId: userRequesting._id },
+    );
     if (!fileToReturn) {
       return res.status(404).json({ error: 'Not found' });
     }
@@ -146,6 +148,39 @@ class FilesController {
     } catch (error) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
+    // we'll make a reference to the files collection accessible via our mongo client
+    const filesCollectionToQuery = dbClient.db.collection('files');
+    // now let's get the query parameters from the query, if they are provided.
+    // first, the parentId, which will default to 0 (root)
+    let parentId = 0;
+    // and if they have provided one, we will use that instead
+    if (req.query.parentId) {
+      parentId = req.query.parentId;
+    }
+    // and turn it into the mongo type of ObjectId
+    const parentIdToSearch = new ObjectId(parentId);
+    // secondly, we will get the page of results they want (if they provide it).
+    // we set the default value to be 0
+    let page = 0;
+    // Then we'll check to see if it's included in the query.
+    // if it's not an integer, parseInt will return NaN which == false
+    if (parseInt(req.query.page, 10)) {
+      // set page if they've given us a valid one
+      page = parseInt(req.query.page, 10);
+    }
+    // and turn page into a skip parameter by multiplying it by the max # records per page
+    const skipParameter = page * 20;
+    // we'll put these all together into an aggregate command to make use of mongo's pipeline
+    const mongoAggregateCommand = [
+      { $match: { userId: userRequesting._id, parentId: parentIdToSearch } },
+      { $skip: skipParameter },
+      { $limit: 20 },
+    ];
+    // and execute the command on the collection we made accessible earlier, putting results in an
+    // array which we will then be able to return as a list of files to the user
+    const filesToReturn = await filesCollectionToQuery.aggregate(mongoAggregateCommand).toArray();
+    // and return it
+    return res.status(200).json(filesToReturn);
   }
 }
 
