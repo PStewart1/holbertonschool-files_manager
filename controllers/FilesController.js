@@ -5,7 +5,7 @@ const { v4: uuidv4 } = require('uuid');
 const { ObjectId } = require('mongodb');
 const fs = require('fs');
 const prom = require('fs').promises;
-const { mime } = require('mime-types');
+const mime = require('mime-types');
 
 class FilesController {
   static async postUpload(req, res) {
@@ -284,9 +284,16 @@ class FilesController {
       return res.status(404).json({ error: 'Not found' });
     }
     // if it's not public and the requesting user isn't authenticated or the owner? error.
-    if (fileRequested.isPulbic === false) {
+    if (fileRequested.isPublic === false) {
+      // we need to retrieve the user from the token, in order to authenticate them as file owner
+      let userRequesting;
+      try {
+        userRequesting = await authenticate(req);
+      } catch (err) {
+        return res.status(404).json({ error: 'Not found' });
+      }
       const fileOwner = fileRequested.userId.toString();
-      if (fileOwner !== req.userId) {
+      if (fileOwner !== userRequesting._id.toString()) {
         return res.status(404).json({ error: 'Not found' });
       }
     }

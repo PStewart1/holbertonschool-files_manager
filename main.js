@@ -2,6 +2,7 @@ import chai from 'chai';
 import chaiHttp from 'chai-http';
 
 import { v4 as uuidv4 } from 'uuid';
+import fs from 'fs';
 
 import { MongoClient, ObjectID } from 'mongodb';
 import { promisify } from 'util';
@@ -10,7 +11,7 @@ import sha1 from 'sha1';
 
 chai.use(chaiHttp);
 
-describe('POST /files', () => {
+describe('GET /files/:id/data', () => {
     let testClientDb;
     let testRedisClient;
     let redisDelAsync;
@@ -18,9 +19,17 @@ describe('POST /files', () => {
     let redisSetAsync;
     let redisKeysAsync;
 
+    let fileUser = null;
+    let fileUserId = null;
+    
     let initialUser = null;
     let initialUserId = null;
     let initialUserToken = null;
+
+    let initialUnpublishedFolderId = null;
+    let initialPublishedFolderId = null;
+
+    const folderTmpFilesManagerPath = process.env.FOLDER_PATH || '/tmp/files_manager';
 
     const fctRandomString = () => {
         return Math.random().toString(36).substring(2, 15);
@@ -31,6 +40,13 @@ describe('POST /files', () => {
             await redisDelAsync(key);
         });
     }
+    const fctRemoveTmp = () => {
+        if (fs.existsSync(folderTmpFilesManagerPath)) {
+            fs.readdirSync(`${folderTmpFilesManagerPath}/`).forEach((i) => {
+                fs.unlinkSync(`${folderTmpFilesManagerPath}/${i}`)
+            })
+        }
+    }
 
     beforeEach(() => {
         const dbInfo = {
@@ -39,6 +55,7 @@ describe('POST /files', () => {
             database: process.env.DB_DATABASE || 'files_manager'
         };
         return new Promise((resolve) => {
+            fctRemoveTmp();
             MongoClient.connect(`mongodb://${dbInfo.host}:${dbInfo.port}/${dbInfo.database}`, async (err, client) => {
                 testClientDb = client.db(dbInfo.database);
             
@@ -53,6 +70,42 @@ describe('POST /files', () => {
                 const createdDocs = await testClientDb.collection('users').insertOne(initialUser);
                 if (createdDocs && createdDocs.ops.length > 0) {
                     initialUserId = createdDocs.ops[0]._id.toString();
+                }
+
+                // Add 1 user owner of file
+                fileUser = { 
+                    email: `${fctRandomString()}@me.com`,
+                    password: sha1(fctRandomString())
+                }
+                const createdUserFileDocs = await testClientDb.collection('users').insertOne(fileUser);
+                if (createdUserFileDocs && createdUserFileDocs.ops.length > 0) {
+                    fileUserId = createdUserFileDocs.ops[0]._id.toString();
+                }
+
+                // Add 1 folder unpublished
+                const initialUnpublishedFolder = { 
+                    userId: ObjectID(fileUserId), 
+                    name: fctRandomString(), 
+                    type: "folder", 
+                    parentId: '0',
+                    isPublic: false
+                };
+                const createdUFolderDocs = await testClientDb.collection('files').insertOne(initialUnpublishedFolder);
+                if (createdUFolderDocs && createdUFolderDocs.ops.length > 0) {
+                    initialUnpublishedFolderId = createdUFolderDocs.ops[0]._id.toString();
+                }
+
+                // Add 1 folder published 
+                const initialPublishedFolder = { 
+                    userId: ObjectID(fileUserId), 
+                    name: fctRandomString(), 
+                    type: "folder", 
+                    parentId: '0',
+                    isPublic: true
+                };
+                const createdPFolderDocs = await testClientDb.collection('files').insertOne(initialPublishedFolder);
+                if (createdPFolderDocs && createdPFolderDocs.ops.length > 0) {
+                    initialPublishedFolderId = createdPFolderDocs.ops[0]._id.toString();
                 }
 
                 testRedisClient = redis.createClient();
@@ -74,32 +127,36 @@ describe('POST /files', () => {
         
     afterEach(() => {
         fctRemoveAllRedisKeys();
+        fctRemoveTmp();
     });
 
-    it('POST /files invalid token user', (done) => {
-        const fileData = {
-            name: fctRandomString(),
-            type: 'folder'
-        }
+    it('GET /files/:id/data with an unpublished folder linked to :id but user authenticated and not owner', (done) => {
         chai.request('http://localhost:5000')
-            .post('/files')
-            .set('X-Token', `${initialUserToken}_121`)
-            .send(fileData)
+            .get(`/files/${initialUnpublishedFolderId}/data`)
+            .set('X-Token', initialUserToken)
             .end(async (err, res) => {
                 chai.expect(err).to.be.null;
-                chai.expect(res).to.have.status(401);
+                chai.expect(res).to.have.status(404);
 
                 const resError = res.body.error;
-                chai.expect(resError).to.equal("Unauthorized");
+                chai.expect(resError).to.equal("Not found");
                 
-                testClientDb.collection('files')
-                    .find({})
-                    .toArray((err, docs) => {
-                        chai.expect(err).to.be.null;
-                        chai.expect(docs.length).to.equal(0);
+                done();
+            });
+    }).timeout(30000);
 
-                        done();
-                    })
+    it('GET /files/:id/data with a published folder linked to :id but user authenticated and not owner', (done) => {
+        chai.request('http://localhost:5000')
+            .get(`/files/${initialPublishedFolderId}/data`)
+            .set('X-Token', initialUserToken)
+            .end(async (err, res) => {
+                chai.expect(err).to.be.null;
+                chai.expect(res).to.have.status(400);
+
+                const resError = res.body.error;
+                chai.expect(resError).to.equal("A folder doesn't have content");
+                
+                done();
             });
     }).timeout(30000);
 });
