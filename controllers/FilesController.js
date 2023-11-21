@@ -151,16 +151,16 @@ class FilesController {
     // we'll make a reference to the files collection accessible via our mongo client
     const filesCollectionToQuery = dbClient.db.collection('files');
     // now let's get the query parameters from the query, if they are provided.
-
     // first, the parentId, which will default to 0 (root) but we'll declare it and check first
     let parentIdToSearch;
     // and if they have provided one, we will use that instead
-    if (req.query.parentId) {
+    if (req.query.parentId && ObjectId.isValid(req.query.parentId)) {
       parentIdToSearch = new ObjectId(req.query.parentId);
     } else {
-      parentIdToSearch = new ObjectId(0);
+      parentIdToSearch = '0';
     }
-
+    // and let's make our query ready to put into the aggregate command later
+    const matchAggregate = { userId: userRequesting._id, parentId: parentIdToSearch };
     // secondly, we will get the page of results they want (if they provide it).
     // we set the default value to be 0
     let page = 0;
@@ -174,7 +174,7 @@ class FilesController {
     const skipParameter = page * 20;
     // we'll put these all together into an aggregate command to make use of mongo's pipeline
     const mongoAggregateCommand = [
-      { $match: { userId: userRequesting._id, parentId: parentIdToSearch } },
+      { $match: matchAggregate },
       { $skip: skipParameter },
       { $limit: 20 },
     ];
