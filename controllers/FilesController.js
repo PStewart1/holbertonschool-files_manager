@@ -159,8 +159,6 @@ class FilesController {
     } else {
       parentIdToSearch = '0';
     }
-    // and let's make our query ready to put into the aggregate command later
-    const matchAggregate = { userId: userRequesting._id, parentId: parentIdToSearch };
     // secondly, we will get the page of results they want (if they provide it).
     // we set the default value to be 0
     let page = 0;
@@ -173,11 +171,19 @@ class FilesController {
     // and turn page into a skip parameter by multiplying it by the max # records per page
     const skipParameter = page * 20;
     // we'll put these all together into an aggregate command to make use of mongo's pipeline
-    const mongoAggregateCommand = [
-      { $match: matchAggregate },
-      { $skip: skipParameter },
-      { $limit: 20 },
-    ];
+    if (parentIdToSearch !== '0') {
+      const mongoAggregateCommand = [
+        { $match: { userId: userRequesting._id, parentId: parentIdToSearch } },
+        { $skip: skipParameter },
+        { $limit: 20 },
+      ];
+    } else {
+      const mongoAggregateCommand = [
+        { $match: { userId: userRequesting._id } },
+        { $skip: skipParameter },
+        { $limit: 20 },
+      ]
+    }
     // and execute the command on the collection we made accessible earlier, putting results in an
     // array which we will then be able to return as a list of files to the user
     const filesToReturn = await filesCollectionToQuery.aggregate(mongoAggregateCommand).toArray();
