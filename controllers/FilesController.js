@@ -181,6 +181,88 @@ class FilesController {
     // and finally return it
     return res.status(200).json(formattedFiles);
   }
+
+  static async putPublish(req, res) {
+    // let's declare a variable to hold the user object located based on the request
+    let userRequesting;
+    // pass it to our good friend authenticate to return the user object
+    try {
+      userRequesting = await authenticate(req);
+    } catch (error) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    // we'll make a reference to the files collection accessible via our mongo client
+    const filesCollectionToQuery = dbClient.db.collection('files');
+    // let's grab the file id from the URL parameter
+    const fileRequestedId = req.params.id;
+    // and try to convert it to a mongodb ObjectId type
+    let fileRequestedObjectId;
+    try {
+      fileRequestedObjectId = new ObjectId(fileRequestedId);
+    } catch (error) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+    // try to access the file using the file's id and the requesting user's id
+    const fileToPublish = await filesCollectionToQuery.findOne(
+      { _id: fileRequestedObjectId, userId: userRequesting._id },
+    );
+    // if the file isn't there or accessible, return an error
+    if (!fileToPublish) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+    // change the isPublic attribute to be 'true'
+    await filesCollectionToQuery.updateOne(
+      { _id: fileRequestedObjectId }, { $set: { isPublic: true } },
+    );
+    // we actually have to grab it again instead of using 'fileToPublish', because that
+    // actually references the state of the file before we updated it. the contents of the
+    // variable fileToPublish are not actually updated by that operation. Actually!
+    const fileThatWasJustPublished = await filesCollectionToQuery.findOne(
+      { _id: fileRequestedObjectId },
+    );
+    return res.status(200).json(fileThatWasJustPublished);
+  }
+
+  static async putUnpublish(req, res) {
+    // let's declare a variable to hold the user object located based on the request
+    let userRequesting;
+    // pass it to our good friend authenticate to return the user object
+    try {
+      userRequesting = await authenticate(req);
+    } catch (error) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    // we'll make a reference to the files collection accessible via our mongo client
+    const filesCollectionToQuery = dbClient.db.collection('files');
+    // let's grab the file id from the URL parameter
+    const fileRequestedId = req.params.id;
+    // and try to convert it to a mongodb ObjectId type
+    let fileRequestedObjectId;
+    try {
+      fileRequestedObjectId = new ObjectId(fileRequestedId);
+    } catch (error) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+    // try to access the file using the file's id and the requesting user's id
+    const fileToUnpublish = await filesCollectionToQuery.findOne(
+      { _id: fileRequestedObjectId, userId: userRequesting._id },
+    );
+    // if the file isn't there or accessible, return an error
+    if (!fileToUnpublish) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+    // change the isPublic attribute to be 'false'
+    await filesCollectionToQuery.updateOne(
+      { _id: fileRequestedObjectId }, { $set: { isPublic: false } },
+    );
+    // we actually have to grab it again instead of using 'fileToUnpublish', because that
+    // actually references the state of the file before we updated it. the contents of the
+    // variable fileToUnpublish are not actually updated by that operation. Actually!
+    const fileThatWasJustUnpublished = await filesCollectionToQuery.findOne(
+      { _id: fileRequestedObjectId },
+    );
+    return res.status(200).json(fileThatWasJustUnpublished);
+  }
 }
 
 export default FilesController;
